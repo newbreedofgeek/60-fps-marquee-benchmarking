@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title></title>
+
+    <style type="text/css">
+        body {
+            background-color: #000;
+            padding: 0;
+        }
+
+        #wrap {
+            background: no-repeat url('game-of-thrones-image.jpg');
+            width:1280px;
+            height:720px;
+            padding-top: 30px;
+            overflow: hidden;
+            margin-top: 20px;;
+        }
+
+        #my-div-bg {
+            height:50px;
+            width: 100%;
+            background-color: #333;
+        }
+
+        #my-div {
+            width:550px;
+            height:50px;
+            line-height: 50px;
+            color: white;
+            position: relative;
+            left:-550px;
+            top:-50px;
+            font-size: 20px;
+        }
+
+        #my-div.css3-plain-end {
+            -webkit-transition: all linear 15s;
+            left:1280px;
+        }
+
+        #my-div.css3-ha {
+            left: 0;
+            -webkit-transition: all linear 15s;
+            -webkit-transform: translateX(-550px);
+        }
+
+        #my-div.css3-ha.end {
+            -webkit-transform: translateX(1280px);
+        }
+
+        .button {
+            background-color: #ccc;
+            padding: 3px;
+            width:1280px;
+            box-sizing: border-box;
+            cursor: pointer;
+        }
+
+        .button.active {
+            background-color: lightcoral;
+        }
+    </style>
+</head>
+<body>
+    <div class="button" onclick="reset(true);">Stop & Reset</div>
+    <div class="button" onclick="go(1, true);">Animate with SetInterval</div>
+    <div class="button" onclick="go(2, true);">Animate with RequestAnimationFrame</div>
+    <div class="button" onclick="go(3, true);">Animate with CSS3 Transition on 'left'</div>
+    <div class="button" onclick="go(4, true);">Animate with CSS3 Transition on 'translateX' (Hardware Accelerated)</div>
+
+    <div id="wrap">
+        <div id="my-div-bg"></div>
+        <div id="my-div">If a listener was registered twice, one with capture and one without.</div>
+    </div>
+
+    <script type="text/javascript">
+        var startingLeft = -550;
+        var endingLeft = 1280;
+        var intervalTimer = null;
+        var rafTimer = null;
+        var animationTimeInSec = 15;
+        var element = document.getElementById('my-div');
+        var animationStart = null;
+        var animationEnd = null;
+        var effectId = null;
+        var pxToMovePerMs = (endingLeft - startingLeft) / (animationTimeInSec * 1000);
+        var pxToMovePerFrame = pxToMovePerMs * 16;
+        var forceReset = false;
+
+        function go(d, explicit) {
+            if (explicit) {
+                reset(true);
+
+                setTimeout(function() {
+                    enforeEffect(d, explicit);
+                }, 10);
+            }
+            else {
+                enforeEffect(d, false);
+            }
+        }
+
+        function enforeEffect(d, explicit) {
+            if (explicit) {
+                effectId = d;
+                document.querySelector('.button:nth-child('+ (d + 1) +')').classList.add('active');
+            }
+
+            switch (d) {
+                case 1:
+                    timerLog();
+
+                    /* setInterval: Runs every 16ms to achieve 60fps (1000ms/60 ~= 16ms). */
+                    intervalTimer = setInterval(function() {
+                        if (startingLeft >= endingLeft) {
+                            loop();
+                            window.clearInterval(intervalTimer);
+                        }
+
+                        element.style.left = (startingLeft += pxToMovePerFrame) + 'px';
+                    }, 16);
+                   break;
+
+                case 2:
+                    /* requestAnimationFrame: Attempts to run at 60fps based on whether the browser is in an optimal state.*/
+                    function tick () {
+                        if (startingLeft >= endingLeft) {
+                            loop();
+                            return false;
+                        }
+
+                        if (forceReset) {
+                            forceReset = false;
+                            return false;
+                        }
+
+                        element.style.left = (startingLeft += pxToMovePerFrame) + 'px';
+
+                        rafTimer = window.requestAnimationFrame(tick);
+                    }
+
+                    timerLog();
+                    window.requestAnimationFrame(tick);
+                   break;
+
+                case 3:
+                    element.addEventListener( 'webkitTransitionEnd', loop, false);
+
+                    timerLog();
+                    element.classList.add('css3-plain-end');
+                   break;
+
+                case 4:
+                    element.addEventListener( 'webkitTransitionEnd', loop, false);
+
+                    timerLog();
+                    element.classList.add('css3-ha');
+                    element.classList.add('end');
+                   break;
+            }
+        }
+
+        function reset(explicit) {
+            if (explicit) {
+                document.querySelector('.button:nth-child('+ (effectId + 1) +')').classList.remove('active');
+            }
+
+            switch (effectId) {
+                case 1:
+                    window.clearInterval(intervalTimer);
+                    resetLeftStartPos();
+                    intervalTimer = null;
+                    break;
+                case 2:
+                    resetLeftStartPos();
+
+                    if (explicit) {
+                        forceReset = true; // flag to stop the animationFrame loop
+                    }
+                    break;
+                case 3:
+                    element.classList.remove('css3-plain-end');
+                    element.removeEventListener( 'webkitTransitionEnd', loop, false );
+                    break;
+                case 4:
+                    element.classList.remove('css3-ha');
+                    element.classList.remove('end');
+                    element.removeEventListener( 'webkitTransitionEnd', loop, false );
+                    break;
+            }
+        }
+
+        function loop() {
+            timerShowDuration();
+
+            reset(false);
+
+            setTimeout(function() {
+                go(effectId, false);
+            }, 10);
+        }
+
+        function resetLeftStartPos() {
+            startingLeft = -550;
+            element.style.left = '';
+        }
+
+        function timerLog() {
+            animationStart = window.performance.now();
+        }
+
+        function timerShowDuration() {
+            animationEnd = window.performance.now();
+            console.log(animationEnd - animationStart);
+
+            // reset timer vars
+            animationStart = null;
+            animationEnd = null;
+        }
+    </script>
+</body>
+</html>
