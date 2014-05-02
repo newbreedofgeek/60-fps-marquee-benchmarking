@@ -10,7 +10,7 @@
             padding: 0;
         }
 
-        #wrap {
+        #screen {
             background: no-repeat url('game-of-thrones-image.jpg');
             width:1280px;
             height:720px;
@@ -19,36 +19,37 @@
             margin-top: 20px;;
         }
 
-        #my-div-bg {
-            height:50px;
+        #marquee-holder {
+            height:100px;
             width: 100%;
             background-color: #333;
         }
 
-        #my-div {
-            width:550px;
-            height:50px;
-            line-height: 50px;
+        #marquee {
+            width:850px;
+            height:100px;
+            line-height: 100px;
             color: white;
-            position: relative;
-            left:-550px;
-            top:-50px;
-            font-size: 20px;
+            position: absolute;
+            font-size: 30px;
         }
 
-        #my-div.css3-plain-end {
-            -webkit-transition: all linear 15s;
+        #marquee.css3-plain {
+            left:-850px;
+        }
+
+        #marquee.css3-plain.end {
+            -webkit-transition: all linear 10s;
             left:1280px;
         }
 
-        #my-div.css3-ha {
-            left: 0;
-            -webkit-transition: all linear 15s;
-            -webkit-transform: translateX(-550px);
+        #marquee.css3-ha {
+            -webkit-transform: translate3d(-850px,0,0);
         }
 
-        #my-div.css3-ha.end {
-            -webkit-transform: translateX(1280px);
+        #marquee.css3-ha.end {
+            -webkit-transition: all linear 10s;
+            -webkit-transform: translate3d(1280px,0,0);
         }
 
         .button {
@@ -64,49 +65,71 @@
         }
     </style>
 </head>
-<body>
+<body onload="checkRequirements();">
     <div class="button" onclick="reset(true);">Stop & Reset</div>
     <div class="button" onclick="go(1, true);">Animate with SetInterval</div>
     <div class="button" onclick="go(2, true);">Animate with RequestAnimationFrame</div>
     <div class="button" onclick="go(3, true);">Animate with CSS3 Transition on 'left'</div>
-    <div class="button" onclick="go(4, true);">Animate with CSS3 Transition on 'translateX' (Hardware Accelerated)</div>
+    <div class="button" onclick="go(4, true);">Animate with CSS3 Transition on 'translate3d' (Hardware Accelerated)</div>
 
-    <div id="wrap">
-        <div id="my-div-bg"></div>
-        <div id="my-div">If a listener was registered twice, one with capture and one without.</div>
+    <div id="screen">
+        <div id="marquee-holder">
+            <div id="marquee">Marquee sample effect only. Ideally they should flow from left to right</div>
+        </div>
     </div>
 
     <script type="text/javascript">
-        var startingLeft = -550;
-        var endingLeft = 1280;
-        var intervalTimer = null;
-        var rafTimer = null;
-        var animationTimeInSec = 15;
-        var element = document.getElementById('my-div');
-        var animationStart = null;
-        var animationEnd = null;
-        var effectId = null;
-        var pxToMovePerMs = (endingLeft - startingLeft) / (animationTimeInSec * 1000);
-        var pxToMovePerFrame = pxToMovePerMs * 16;
-        var forceReset = false;
+        var startingLeft = -850,
+            endingLeft = 1280,
+            intervalTimer = null,
+            rafTimer = null,
+            animationTimeInSec = 10,
+            element = document.getElementById('marquee'),
+            animationStart = null,
+            animationEnd = null,
+            effectId = null,
+            pxToMovePerMs = (endingLeft - startingLeft) / (animationTimeInSec * 1000),
+            pxToMovePerFrame = pxToMovePerMs * 16,
+            forceReset = false,
+            loopInProgress = false;
 
-        function go(d, explicit) {
-            if (explicit) {
-                reset(true);
 
-                setTimeout(function() {
-                    enforeEffect(d, explicit);
-                }, 10);
+        function checkRequirements() {
+            if (typeof window.requestAnimationFrame === 'undefined') {
+                alert('window.requestAnimationFrame is required to run this!');
             }
-            else {
-                enforeEffect(d, false);
+
+            if (typeof window.performance === 'undefined') {
+                alert('window.performance is required to run this!');
+            }
+
+            if (typeof navigator.userAgent !== 'undefined' && navigator.userAgent.toLowerCase().indexOf('webkit') === -1) {
+                alert('A wekbit based browser is required to run this!');
             }
         }
 
-        function enforeEffect(d, explicit) {
-            if (explicit) {
-                effectId = d;
+        function go(d, explicit) {
+            if (!explicit) {
+                reset(false);
+            }
+            else if (loopInProgress) {
+                reset(true);
+            }
+
+            window.setTimeout(function() {
+                enforceEffect(d);
+            }, 10);
+        }
+
+        function enforceEffect(d) {
+            if (!loopInProgress) {
+                loopInProgress = true;
+            }
+
+            if (effectId !== d) {
+                document.querySelector('.button:nth-child('+ (effectId + 1) +')').classList.remove('active');
                 document.querySelector('.button:nth-child('+ (d + 1) +')').classList.add('active');
+                effectId = d;
             }
 
             switch (d) {
@@ -150,7 +173,12 @@
                     element.addEventListener( 'webkitTransitionEnd', loop, false);
 
                     timerLog();
-                    element.classList.add('css3-plain-end');
+
+                    element.classList.add('css3-plain');
+
+                    window.setTimeout(function() {
+                        element.classList.add('end');
+                    }, 10);
                    break;
 
                 case 4:
@@ -158,54 +186,60 @@
 
                     timerLog();
                     element.classList.add('css3-ha');
-                    element.classList.add('end');
+
+                    window.setTimeout(function() {
+                        element.classList.add('end');
+                    }, 10);
                    break;
             }
         }
 
         function reset(explicit) {
-            if (explicit) {
-                document.querySelector('.button:nth-child('+ (effectId + 1) +')').classList.remove('active');
-            }
-
             switch (effectId) {
                 case 1:
                     window.clearInterval(intervalTimer);
                     resetLeftStartPos();
+                    if (explicit) {
+                        element.style.left = '';
+                    }
                     intervalTimer = null;
                     break;
                 case 2:
                     resetLeftStartPos();
-
                     if (explicit) {
+                        element.style.left = '';
                         forceReset = true; // flag to stop the animationFrame loop
                     }
                     break;
                 case 3:
-                    element.classList.remove('css3-plain-end');
-                    element.removeEventListener( 'webkitTransitionEnd', loop, false );
+                    if (explicit) {
+                        element.classList.remove('css3-plain');
+                    }
+                    element.classList.remove('end');
+                    element.removeEventListener('webkitTransitionEnd', loop, false );
                     break;
                 case 4:
-                    element.classList.remove('css3-ha');
+                    if (explicit) {
+                        element.classList.remove('css3-ha');
+                    }
                     element.classList.remove('end');
-                    element.removeEventListener( 'webkitTransitionEnd', loop, false );
+                    element.removeEventListener('webkitTransitionEnd', loop, false );
                     break;
+            }
+
+            if (explicit) {
+                document.querySelector('.button:nth-child('+ (effectId + 1) +')').classList.remove('active');
+                loopInProgress = false;
             }
         }
 
         function loop() {
             timerShowDuration();
-
-            reset(false);
-
-            setTimeout(function() {
-                go(effectId, false);
-            }, 10);
+            go(effectId, false);
         }
 
         function resetLeftStartPos() {
-            startingLeft = -550;
-            element.style.left = '';
+            startingLeft = -850;
         }
 
         function timerLog() {
